@@ -83,7 +83,7 @@ class SEBrain(sb.core.Brain):
             for name, wav, length in zip(ids, predict_wav, lens):
                 enhance_path = os.path.join(self.hparams.enhanced_folder, name)
                 if not enhance_path.endswith(".wav"):
-                    enhance_path = enhance_path + ".wav"
+                    enhance_path = f"{enhance_path}.wav"
                 torchaudio.save(
                     enhance_path,
                     torch.unsqueeze(wav[: int(length)].cpu(), 0),
@@ -241,9 +241,10 @@ if __name__ == "__main__":
     # Create the folder to save enhanced files (+ support for DDP)
     try:
         # all writing command must be done with the main_process
-        if sb.utils.distributed.if_main_process():
-            if not os.path.isdir(hparams["enhanced_folder"]):
-                os.makedirs(hparams["enhanced_folder"])
+        if sb.utils.distributed.if_main_process() and not os.path.isdir(
+            hparams["enhanced_folder"]
+        ):
+            os.makedirs(hparams["enhanced_folder"])
     finally:
         # wait for main_process if ddp is used
         sb.utils.distributed.ddp_barrier()

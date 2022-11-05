@@ -60,13 +60,13 @@ class WhamRoom(pra.room.ShoeBox):
         self.image_source_model()
 
         for m, mic in enumerate(self.mic_array.R.T):
-            h = []
-            for s, source in enumerate(self.sources):
-                h.append(
-                    source.get_rir(
-                        mic, self.visibility[s][m], self.fs, self.t0
-                    )[: self.max_rir_len]
-                )
+            h = [
+                source.get_rir(mic, self.visibility[s][m], self.fs, self.t0)[
+                    : self.max_rir_len
+                ]
+                for s, source in enumerate(self.sources)
+            ]
+
             self.rir.append(h)
 
     def generate_rirs(self):
@@ -88,16 +88,10 @@ class WhamRoom(pra.room.ShoeBox):
 
         if not self.rir:
             self.generate_rirs()
-        if anechoic:
-            self.rir = self.rir_anechoic
-        else:
-            self.rir = self.rir_reverberant
+        self.rir = self.rir_anechoic if anechoic else self.rir_reverberant
         audio_array = self.simulate(return_premix=True, recompute_rir=False)
 
-        if type(fs) is not list:
-            fs_array = [fs]
-        else:
-            fs_array = fs
+        fs_array = [fs] if type(fs) is not list else fs
         audio_out = []
         for elem in fs_array:
             if type(elem) is str:
@@ -109,7 +103,4 @@ class WhamRoom(pra.room.ShoeBox):
                 )
             else:
                 audio_out.append(audio_array)
-        if type(fs) is not list:
-            return audio_out[0]  # array of shape (n_sources, n_mics, n_samples)
-        else:
-            return audio_out
+        return audio_out[0] if type(fs) is not list else audio_out

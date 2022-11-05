@@ -173,7 +173,7 @@ class MTLbrain(sb.Brain):
                     for i, uid in enumerate(batch.id):
                         length = int(abs_lens[i])
                         wav = predictions["wavs"][i, :length].unsqueeze(0)
-                        path = os.path.join(self.hparams.enh_dir, uid + ".wav")
+                        path = os.path.join(self.hparams.enh_dir, f"{uid}.wav")
                         torchaudio.save(path, wav.cpu(), sample_rate=16000)
 
         # Compute mimic loss
@@ -258,21 +258,19 @@ class MTLbrain(sb.Brain):
             if self.hparams.ctc_weight > 0 or self.hparams.seq_weight > 0:
                 self.err_rate_metrics = self.hparams.err_rate_stats()
 
-        # Freeze models before training
         else:
             for model in self.hparams.frozen_models:
                 for p in self.modules[model].parameters():
-                    if (
-                        hasattr(self.hparams, "unfreeze_epoch")
-                        and epoch >= self.hparams.unfreeze_epoch
-                        and (
-                            not hasattr(self.hparams, "unfrozen_models")
-                            or model in self.hparams.unfrozen_models
+                    p.requires_grad = bool(
+                        (
+                            hasattr(self.hparams, "unfreeze_epoch")
+                            and epoch >= self.hparams.unfreeze_epoch
+                            and (
+                                not hasattr(self.hparams, "unfrozen_models")
+                                or model in self.hparams.unfrozen_models
+                            )
                         )
-                    ):
-                        p.requires_grad = True
-                    else:
-                        p.requires_grad = False
+                    )
 
     def on_stage_end(self, stage, stage_loss, epoch):
         if stage == sb.Stage.TRAIN:
@@ -294,7 +292,7 @@ class MTLbrain(sb.Brain):
 
             if self.hparams.ctc_weight > 0 or self.hparams.seq_weight > 0:
                 err_rate = self.err_rate_metrics.summarize("error_rate")
-                err_rate_type = self.hparams.target_type + "ER"
+                err_rate_type = f"{self.hparams.target_type}ER"
                 stage_stats[err_rate_type] = err_rate
                 min_keys.append(err_rate_type)
 
@@ -367,7 +365,7 @@ def dataio_prep(hparams, token_encoder):
     token_keys = ["tokens_bos", "tokens_eos", "tokens"]
 
     @sb.utils.data_pipeline.takes(hparams["target_type"])
-    @sb.utils.data_pipeline.provides("tokens_list", *[t for t in token_keys])
+    @sb.utils.data_pipeline.provides("tokens_list", *list(token_keys))
     def target_pipeline(target):
         if "asr_pretrained" in hparams:
             tokens_list = token_encoder.encode_as_ids(target)
@@ -396,7 +394,7 @@ def dataio_prep(hparams, token_encoder):
             data[dataset] = data[dataset].filtered_sorted(sort_key="length")
 
     # Sort train dataset and ensure it doesn't get un-sorted
-    if hparams["sorting"] == "ascending" or hparams["sorting"] == "descending":
+    if hparams["sorting"] in ["ascending", "descending"]:
         data["train"] = data["train"].filtered_sorted(
             sort_key="length", reverse=hparams["sorting"] == "descending",
         )

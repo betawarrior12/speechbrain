@@ -206,7 +206,7 @@ def create_csv(
     if noise_csv and has_target:
         raise ValueError("Expected only one of `noise_csv` and `has_target`")
 
-    logger.info("Creating csv list: %s" % csv_file)
+    logger.info(f"Creating csv list: {csv_file}")
 
     csv_lines = [["ID", "duration", "wav", "wav_format", "wav_opts"]]
     if noise_csv or has_target:
@@ -234,7 +234,7 @@ def create_csv(
             target_folder = os.path.join(
                 os.path.split(os.path.split(wav_file)[0])[0], "clean"
             )
-            target_file = os.path.join(target_folder, "clean_fileid_" + fileid)
+            target_file = os.path.join(target_folder, f"clean_fileid_{fileid}")
 
         # Reading the signal (to retrieve duration in seconds)
         signal = read_audio(wav_file)
@@ -264,23 +264,18 @@ def create_csv(
                     str(seg_size),
                     wav_file,
                     "wav",
-                    "start:{} stop:{}".format(start, stop),
+                    f"start:{start} stop:{stop}",
                 ]
+
                 if noise_csv or has_target:
-                    csv_line.extend(
-                        [
-                            target_file,
-                            "wav",
-                            "start:{} stop:{}".format(start, stop),
-                        ]
-                    )
+                    csv_line.extend([target_file, "wav", f"start:{start} stop:{stop}"])
 
                 # Adding this line to the csv_lines list
                 csv_lines.append(csv_line)
 
     # Writing the csv lines
     _write_csv(csv_lines, csv_file)
-    logger.info("%s successfully created!" % csv_file)
+    logger.info(f"{csv_file} successfully created!")
 
 
 def _write_csv(csv_lines, csv_file):

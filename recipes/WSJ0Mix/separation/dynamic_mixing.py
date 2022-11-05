@@ -36,13 +36,13 @@ def build_spk_hashtable(hparams):
         # id of speaker 1 is 019 utterance id is o031a
         # id of speaker 2 is 01v utterance id is 01vo030q
 
-        if spk_id not in spk_hashtable.keys():
-            spk_hashtable[spk_id] = [utt]
-        else:
+        if spk_id in spk_hashtable:
             spk_hashtable[spk_id].append(utt)
 
+        else:
+            spk_hashtable[spk_id] = [utt]
     # calculate weights for each speaker ( len of list of utterances)
-    spk_weights = [len(spk_hashtable[x]) for x in spk_hashtable.keys()]
+    spk_weights = [len(spk_hashtable[x]) for x in spk_hashtable]
 
     return spk_hashtable, spk_weights
 
@@ -58,18 +58,14 @@ def get_wham_noise_filenames(hparams):
             noise_path = "wav16k/min/train-360/noise/"
         else:
             raise ValueError("Unsupported Sampling Rate")
+    elif hparams["sample_rate"] == 8000:
+        noise_path = "wav8k/min/tr/noise/"
+    elif hparams["sample_rate"] == 16000:
+        noise_path = "wav16k/min/tr/noise/"
     else:
-        if hparams["sample_rate"] == 8000:
-            noise_path = "wav8k/min/tr/noise/"
-        elif hparams["sample_rate"] == 16000:
-            noise_path = "wav16k/min/tr/noise/"
-        else:
-            raise ValueError("Unsupported Sampling Rate")
+        raise ValueError("Unsupported Sampling Rate")
 
-    noise_files = glob.glob(
-        os.path.join(hparams["data_folder"], noise_path, "*.wav")
-    )
-    return noise_files
+    return glob.glob(os.path.join(hparams["data_folder"], noise_path, "*.wav"))
 
 
 def dynamic_mix_data_prep(hparams):
@@ -87,7 +83,7 @@ def dynamic_mix_data_prep(hparams):
     # of utterances files of that speaker
     spk_hashtable, spk_weights = build_spk_hashtable(hparams)
 
-    spk_list = [x for x in spk_hashtable.keys()]
+    spk_list = list(spk_hashtable.keys())
     spk_weights = [x / sum(spk_weights) for x in spk_weights]
 
     if "wham" in Path(hparams["data_folder"]).stem:

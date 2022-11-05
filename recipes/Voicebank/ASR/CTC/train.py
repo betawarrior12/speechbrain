@@ -127,7 +127,7 @@ def dataio_prep(hparams):
         )
 
     # Sort train dataset and ensure it doesn't get un-sorted
-    if hparams["sorting"] == "ascending" or hparams["sorting"] == "descending":
+    if hparams["sorting"] in ["ascending", "descending"]:
         data["train"] = data["train"].filtered_sorted(
             sort_key="length", reverse=hparams["sorting"] == "descending",
         )

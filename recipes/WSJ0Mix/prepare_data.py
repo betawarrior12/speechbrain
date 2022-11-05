@@ -95,9 +95,7 @@ def create_custom_dataset(
             "noise_wav_opts",
         ]
 
-        with open(
-            os.path.join(savepath, dataset_name + "_" + set_type + ".csv"), "w"
-        ) as csvfile:
+        with open(os.path.join(savepath, f"{dataset_name}_{set_type}.csv"), "w") as csvfile:
             writer = csv.DictWriter(csvfile, fieldnames=csv_columns)
             writer.writeheader()
             for i, (mix_path, s1_path, s2_path) in enumerate(
@@ -129,9 +127,9 @@ def create_wsj_csv(datapath, savepath):
         savepath (str) : path where we save the csv file
     """
     for set_type in ["tr", "cv", "tt"]:
-        mix_path = os.path.join(datapath, "wav8k/min/" + set_type + "/mix/")
-        s1_path = os.path.join(datapath, "wav8k/min/" + set_type + "/s1/")
-        s2_path = os.path.join(datapath, "wav8k/min/" + set_type + "/s2/")
+        mix_path = os.path.join(datapath, f"wav8k/min/{set_type}/mix/")
+        s1_path = os.path.join(datapath, f"wav8k/min/{set_type}/s1/")
+        s2_path = os.path.join(datapath, f"wav8k/min/{set_type}/s2/")
 
         files = os.listdir(mix_path)
 
@@ -153,7 +151,7 @@ def create_wsj_csv(datapath, savepath):
             "s2_wav_opts",
         ]
 
-        with open(savepath + "/wsj_" + set_type + ".csv", "w") as csvfile:
+        with open(f"{savepath}/wsj_{set_type}.csv", "w") as csvfile:
             writer = csv.DictWriter(csvfile, fieldnames=csv_columns)
             writer.writeheader()
             for i, (mix_path, s1_path, s2_path) in enumerate(
@@ -185,10 +183,10 @@ def create_wsj_csv_3spks(datapath, savepath):
         savepath (str) : path where we save the csv file
     """
     for set_type in ["tr", "cv", "tt"]:
-        mix_path = os.path.join(datapath, "wav8k/min/" + set_type + "/mix/")
-        s1_path = os.path.join(datapath, "wav8k/min/" + set_type + "/s1/")
-        s2_path = os.path.join(datapath, "wav8k/min/" + set_type + "/s2/")
-        s3_path = os.path.join(datapath, "wav8k/min/" + set_type + "/s3/")
+        mix_path = os.path.join(datapath, f"wav8k/min/{set_type}/mix/")
+        s1_path = os.path.join(datapath, f"wav8k/min/{set_type}/s1/")
+        s2_path = os.path.join(datapath, f"wav8k/min/{set_type}/s2/")
+        s3_path = os.path.join(datapath, f"wav8k/min/{set_type}/s3/")
 
         files = os.listdir(mix_path)
 
@@ -214,7 +212,7 @@ def create_wsj_csv_3spks(datapath, savepath):
             "s3_wav_opts",
         ]
 
-        with open(savepath + "/wsj_" + set_type + ".csv", "w") as csvfile:
+        with open(f"{savepath}/wsj_{set_type}.csv", "w") as csvfile:
             writer = csv.DictWriter(csvfile, fieldnames=csv_columns)
             writer.writeheader()
             for i, (mix_path, s1_path, s2_path, s3_path) in enumerate(

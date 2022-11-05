@@ -244,10 +244,7 @@ def skip(*filenames):
         if True, the preparation phase can be skipped.
         if False, it must be done.
     """
-    for filename in filenames:
-        if not os.path.isfile(filename):
-            return False
-    return True
+    return all(os.path.isfile(filename) for filename in filenames)
 
 
 def remove_punctuation(a_string):

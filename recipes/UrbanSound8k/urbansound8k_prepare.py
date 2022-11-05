@@ -208,9 +208,10 @@ def create_json(metadata, audio_data_folder, folds_list, json_file):
             # Reading the signal (to retrieve duration in seconds)
             wav_file = os.path.join(
                 os.path.abspath(audio_data_folder),
-                "fold" + str(fold_num) + "/",
+                f"fold{fold_num}/",
                 sample_metadata["slice_file_name"],
             )
+
             try:
 
                 signal = read_audio(wav_file)
@@ -257,17 +258,12 @@ def folds_overlap(list1, list2):
     """Returns True if any passed lists has incorrect type OR has items in common."""
     if (type(list1) != list) or (type(list2) != list):
         return True
-    if any(item in list1 for item in list2):
-        return True
-    return False
+    return any((item in list1 for item in list2))
 
 
 def check_folders(*folders):
     """Returns False if any passed folder does not exist."""
-    for folder in folders:
-        if not os.path.exists(folder):
-            return False
-    return True
+    return all(os.path.exists(folder) for folder in folders)
 
 
 def full_path_to_audio_file(data_folder, slice_file_name, fold_num):
@@ -285,7 +281,7 @@ def full_path_to_audio_file(data_folder, slice_file_name, fold_num):
     return os.path.join(
         os.path.abspath(data_folder),
         "audio/",
-        "fold" + str(fold_num) + "/",
+        f"fold{str(fold_num)}/",
         slice_file_name,
     )
 
@@ -357,9 +353,7 @@ def prompt_download_urban_sound_8k(destination):
         Place to put dataset.
     """
     print(
-        "UrbanSound8k data is missing from {}!\nRequest it from here: {}".format(
-            destination, URBAN_SOUND_8K_DOWNLOAD_FORM_URL
-        )
+        f"UrbanSound8k data is missing from {destination}!\nRequest it from here: {URBAN_SOUND_8K_DOWNLOAD_FORM_URL}"
     )
 
 

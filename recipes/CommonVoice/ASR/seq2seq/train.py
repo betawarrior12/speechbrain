@@ -45,9 +45,8 @@ class ASR(sb.core.Brain):
         feats = self.modules.normalize(feats, wav_lens)
 
         ## Add augmentation if specified
-        if stage == sb.Stage.TRAIN:
-            if hasattr(self.hparams, "augmentation"):
-                feats = self.hparams.augmentation(feats)
+        if stage == sb.Stage.TRAIN and hasattr(self.hparams, "augmentation"):
+            feats = self.hparams.augmentation(feats)
 
         x = self.modules.enc(feats.detach())
         e_in = self.modules.emb(tokens_bos)  # y_in bos + tokens
@@ -59,13 +58,12 @@ class ASR(sb.core.Brain):
         # Compute outputs
         if stage == sb.Stage.TRAIN:
             current_epoch = self.hparams.epoch_counter.current
-            if current_epoch <= self.hparams.number_of_ctc_epochs:
-                # Output layer for ctc log-probabilities
-                logits = self.modules.ctc_lin(x)
-                p_ctc = self.hparams.log_softmax(logits)
-                return p_ctc, p_seq, wav_lens
-            else:
+            if current_epoch > self.hparams.number_of_ctc_epochs:
                 return p_seq, wav_lens
+            # Output layer for ctc log-probabilities
+            logits = self.modules.ctc_lin(x)
+            p_ctc = self.hparams.log_softmax(logits)
+            return p_ctc, p_seq, wav_lens
         else:
             p_tokens, scores = self.hparams.beam_searcher(x, wav_lens)
             return p_seq, wav_lens, p_tokens

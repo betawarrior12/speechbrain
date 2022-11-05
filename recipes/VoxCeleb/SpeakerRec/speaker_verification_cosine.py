@@ -59,10 +59,7 @@ def compute_embedding_loop(data_loader):
             seg_ids = batch.id
             wavs, lens = batch.sig
 
-            found = False
-            for seg_id in seg_ids:
-                if seg_id not in embedding_dict:
-                    found = True
+            found = any(seg_id not in embedding_dict for seg_id in seg_ids)
             if not found:
                 continue
             wavs, lens = wavs.to(params["device"]), lens.to(params["device"])
@@ -80,73 +77,71 @@ def get_verification_scores(veri_test):
     negative_scores = []
 
     save_file = os.path.join(params["output_folder"], "scores.txt")
-    s_file = open(save_file, "w")
+    with open(save_file, "w") as s_file:
+        # Cosine similarity initialization
+        similarity = torch.nn.CosineSimilarity(dim=-1, eps=1e-6)
 
-    # Cosine similarity initialization
-    similarity = torch.nn.CosineSimilarity(dim=-1, eps=1e-6)
-
-    # creating cohort for score normalization
-    if "score_norm" in params:
-        train_cohort = torch.stack(list(train_dict.values()))
-
-    for i, line in enumerate(veri_test):
-
-        # Reading verification file (enrol_file test_file label)
-        lab_pair = int(line.split(" ")[0].rstrip().split(".")[0].strip())
-        enrol_id = line.split(" ")[1].rstrip().split(".")[0].strip()
-        test_id = line.split(" ")[2].rstrip().split(".")[0].strip()
-        enrol = enrol_dict[enrol_id]
-        test = test_dict[test_id]
-
+        # creating cohort for score normalization
         if "score_norm" in params:
-            # Getting norm stats for enrol impostors
-            enrol_rep = enrol.repeat(train_cohort.shape[0], 1, 1)
-            score_e_c = similarity(enrol_rep, train_cohort)
+            train_cohort = torch.stack(list(train_dict.values()))
 
-            if "cohort_size" in params:
-                score_e_c = torch.topk(
-                    score_e_c, k=params["cohort_size"], dim=0
-                )[0]
+        for i, line in enumerate(veri_test):
 
-            mean_e_c = torch.mean(score_e_c, dim=0)
-            std_e_c = torch.std(score_e_c, dim=0)
+            # Reading verification file (enrol_file test_file label)
+            lab_pair = int(line.split(" ")[0].rstrip().split(".")[0].strip())
+            enrol_id = line.split(" ")[1].rstrip().split(".")[0].strip()
+            test_id = line.split(" ")[2].rstrip().split(".")[0].strip()
+            enrol = enrol_dict[enrol_id]
+            test = test_dict[test_id]
 
-            # Getting norm stats for test impostors
-            test_rep = test.repeat(train_cohort.shape[0], 1, 1)
-            score_t_c = similarity(test_rep, train_cohort)
+            if "score_norm" in params:
+                # Getting norm stats for enrol impostors
+                enrol_rep = enrol.repeat(train_cohort.shape[0], 1, 1)
+                score_e_c = similarity(enrol_rep, train_cohort)
 
-            if "cohort_size" in params:
-                score_t_c = torch.topk(
-                    score_t_c, k=params["cohort_size"], dim=0
-                )[0]
+                if "cohort_size" in params:
+                    score_e_c = torch.topk(
+                        score_e_c, k=params["cohort_size"], dim=0
+                    )[0]
 
-            mean_t_c = torch.mean(score_t_c, dim=0)
-            std_t_c = torch.std(score_t_c, dim=0)
+                mean_e_c = torch.mean(score_e_c, dim=0)
+                std_e_c = torch.std(score_e_c, dim=0)
 
-        # Compute the score for the given sentence
-        score = similarity(enrol, test)[0]
+                # Getting norm stats for test impostors
+                test_rep = test.repeat(train_cohort.shape[0], 1, 1)
+                score_t_c = similarity(test_rep, train_cohort)
 
-        # Perform score normalization
-        if "score_norm" in params:
-            if params["score_norm"] == "z-norm":
-                score = (score - mean_e_c) / std_e_c
-            elif params["score_norm"] == "t-norm":
-                score = (score - mean_t_c) / std_t_c
-            elif params["score_norm"] == "s-norm":
-                score_e = (score - mean_e_c) / std_e_c
-                score_t = (score - mean_t_c) / std_t_c
-                score = 0.5 * (score_e + score_t)
+                if "cohort_size" in params:
+                    score_t_c = torch.topk(
+                        score_t_c, k=params["cohort_size"], dim=0
+                    )[0]
 
-        # write score file
-        s_file.write("%s %s %i %f\n" % (enrol_id, test_id, lab_pair, score))
-        scores.append(score)
+                mean_t_c = torch.mean(score_t_c, dim=0)
+                std_t_c = torch.std(score_t_c, dim=0)
 
-        if lab_pair == 1:
-            positive_scores.append(score)
-        else:
-            negative_scores.append(score)
+            # Compute the score for the given sentence
+            score = similarity(enrol, test)[0]
 
-    s_file.close()
+            # Perform score normalization
+            if "score_norm" in params:
+                if params["score_norm"] == "z-norm":
+                    score = (score - mean_e_c) / std_e_c
+                elif params["score_norm"] == "t-norm":
+                    score = (score - mean_t_c) / std_t_c
+                elif params["score_norm"] == "s-norm":
+                    score_e = (score - mean_e_c) / std_e_c
+                    score_t = (score - mean_t_c) / std_t_c
+                    score = 0.5 * (score_e + score_t)
+
+            # write score file
+            s_file.write("%s %s %i %f\n" % (enrol_id, test_id, lab_pair, score))
+            scores.append(score)
+
+            if lab_pair == 1:
+                positive_scores.append(score)
+            else:
+                negative_scores.append(score)
+
     return positive_scores, negative_scores
 
 

@@ -176,10 +176,7 @@ class MaskedCNNTransformerSE(CNNTransformerSE):
 
     def forward(self, x, src_key_padding_mask=None, attn_mask=None):
         if attn_mask is None:
-            if self.causal:
-                self.attn_mask = get_lookahead_mask(x)
-            else:
-                self.attn_mask = None
+            self.attn_mask = get_lookahead_mask(x) if self.causal else None
         else:
             self.attn_mask = attn_mask
 

@@ -67,8 +67,8 @@ def emb_computation_loop(split, set_loader, stat_file):
             for batch in t:
                 ids = batch.id
                 wavs, lens = batch.sig
-                mod = [x for x in ids]
-                seg = [x for x in ids]
+                mod = list(ids)
+                seg = list(ids)
                 modelset = modelset + mod
                 segset = segset + seg
 
@@ -125,7 +125,7 @@ def verification_performance(scores_plda):
 
         s = float(scores_plda.scoremat[i, j])
         labels.append(lab)
-        ids.append(enrol_id + "<>" + test_id)
+        ids.append(f"{enrol_id}<>{test_id}")
         if lab == 1:
             positive_scores.append(s)
         else:

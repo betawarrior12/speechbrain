@@ -33,9 +33,8 @@ class ASR(sb.Brain):
         wavs, wav_lens = batch.sig
         phns_bos, _ = batch.phn_encoded_bos
 
-        if stage == sb.Stage.TRAIN:
-            if hasattr(self.hparams, "augmentation"):
-                wavs = self.hparams.augmentation(wavs, wav_lens)
+        if stage == sb.Stage.TRAIN and hasattr(self.hparams, "augmentation"):
+            wavs = self.hparams.augmentation(wavs, wav_lens)
 
         feats = self.modules.wav2vec2(wavs)
         x = self.modules.enc(feats)

@@ -189,7 +189,7 @@ class MetricGanBrain(sb.Brain):
             if d not in self.historical_set and d not in self.noisy_scores
         ]
 
-        if len(new_ids) == 0:
+        if not new_ids:
             pass
         elif self.hparams.target_metric == "pesq":
             self.target_metric.append(
@@ -264,15 +264,13 @@ class MetricGanBrain(sb.Brain):
         for i, (cleanid, name, pred_wav, length) in enumerate(
             zip(clean_id, batch_id, wavs, lens)
         ):
-            path = os.path.join(self.hparams.MetricGAN_folder, name + ".wav")
+            path = os.path.join(self.hparams.MetricGAN_folder, f"{name}.wav")
             data = torch.unsqueeze(pred_wav[: int(length)].cpu(), 0)
             torchaudio.save(path, data, self.hparams.Sample_rate)
 
             # Make record of path and score for historical training
             score = float(scores[i][0])
-            clean_path = os.path.join(
-                self.hparams.train_clean_folder, cleanid + ".wav"
-            )
+            clean_path = os.path.join(self.hparams.train_clean_folder, f"{cleanid}.wav")
             record[name] = {
                 "enh_wav": path,
                 "score": score,
@@ -509,17 +507,15 @@ def enh_pipeline(enh_wav, clean_wav):
 def dataio_prep(hparams):
     """This function prepares the datasets to be used in the brain class."""
 
-    # Define datasets
-    datasets = {}
-    for dataset in ["train", "valid", "test"]:
-        datasets[dataset] = sb.dataio.dataset.DynamicItemDataset.from_json(
+    return {
+        dataset: sb.dataio.dataset.DynamicItemDataset.from_json(
             json_path=hparams[f"{dataset}_annotation"],
             replacements={"data_root": hparams["data_folder"]},
             dynamic_items=[audio_pipeline],
             output_keys=["id", "noisy_sig", "clean_sig"],
         )
-
-    return datasets
+        for dataset in ["train", "valid", "test"]
+    }
 
 
 def create_folder(folder):

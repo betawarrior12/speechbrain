@@ -259,12 +259,10 @@ class ST(sb.core.Brain):
             if current_epoch <= self.hparams.stage_one_epochs:
                 lr = self.hparams.noam_annealing.current_lr
                 steps = self.hparams.noam_annealing.n_steps
-                optimizer = self.optimizer.__class__.__name__
             else:
                 lr = self.hparams.lr_sgd
                 steps = -1
-                optimizer = self.optimizer.__class__.__name__
-
+            optimizer = self.optimizer.__class__.__name__
             epoch_stats = {
                 "epoch": epoch,
                 "lr": lr,
@@ -325,8 +323,8 @@ class ST(sb.core.Brain):
 
         # if the model is resumed from stage two, reinitialize the optimizer
         current_epoch = self.hparams.epoch_counter.current
-        current_optimizer = self.optimizer
         if current_epoch > self.hparams.stage_one_epochs:
+            current_optimizer = self.optimizer
             del self.optimizer
             self.optimizer = self.hparams.SGD(self.modules.parameters())
 

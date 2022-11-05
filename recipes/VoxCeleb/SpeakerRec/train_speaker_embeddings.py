@@ -40,10 +40,8 @@ class SpeakerBrain(sb.core.Brain):
         if stage == sb.Stage.TRAIN:
 
             # Applying the augmentation pipeline
-            wavs_aug_tot = []
-            wavs_aug_tot.append(wavs)
-            for count, augment in enumerate(self.hparams.augment_pipeline):
-
+            wavs_aug_tot = [wavs]
+            for augment in self.hparams.augment_pipeline:
                 # Apply augment
                 wavs_aug = augment(wavs, lens)
 

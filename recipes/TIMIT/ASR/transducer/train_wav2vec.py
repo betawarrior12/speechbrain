@@ -31,9 +31,8 @@ class ASR_Brain(sb.Brain):
         phns, phn_lens = batch.phn_encoded
 
         # Adding optional augmentation when specified:
-        if stage == sb.Stage.TRAIN:
-            if hasattr(self.hparams, "augmentation"):
-                wavs = self.hparams.augmentation(wavs, wav_lens)
+        if stage == sb.Stage.TRAIN and hasattr(self.hparams, "augmentation"):
+            wavs = self.hparams.augmentation(wavs, wav_lens)
 
         # Model computations
         feats = self.modules.wav2vec2(wavs)

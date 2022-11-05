@@ -53,9 +53,8 @@ class ASR(sb.core.Brain):
         feats = self.hparams.normalize(feats, wav_lens, epoch=current_epoch)
 
         # Augmentation
-        if stage == sb.Stage.TRAIN:
-            if hasattr(self.hparams, "augmentation"):
-                feats = self.hparams.augmentation(feats)
+        if stage == sb.Stage.TRAIN and hasattr(self.hparams, "augmentation"):
+            feats = self.hparams.augmentation(feats)
 
         # forward modules
         src = self.modules.CNN(feats)
@@ -190,12 +189,10 @@ class ASR(sb.core.Brain):
             if current_epoch <= self.hparams.stage_one_epochs:
                 lr = self.hparams.noam_annealing.current_lr
                 steps = self.hparams.noam_annealing.n_steps
-                optimizer = self.optimizer.__class__.__name__
             else:
                 lr = self.hparams.lr_sgd
                 steps = -1
-                optimizer = self.optimizer.__class__.__name__
-
+            optimizer = self.optimizer.__class__.__name__
             epoch_stats = {
                 "epoch": epoch,
                 "lr": lr,
