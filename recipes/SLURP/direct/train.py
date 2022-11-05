@@ -59,15 +59,13 @@ class SLU(sb.Brain):
         logits = self.hparams.seq_lin(h)
         p_seq = self.hparams.log_softmax(logits)
 
-        # Compute outputs
         if (
             stage == sb.Stage.TRAIN
             and self.batch_count % show_results_every != 0
         ):
             return p_seq, wav_lens
-        else:
-            p_tokens, scores = self.hparams.beam_searcher(encoder_out, wav_lens)
-            return p_seq, wav_lens, p_tokens
+        p_tokens, scores = self.hparams.beam_searcher(encoder_out, wav_lens)
+        return p_seq, wav_lens, p_tokens
 
     def compute_objectives(self, predictions, batch, stage):
         """Computes the loss (NLL) given predictions and targets."""
@@ -356,10 +354,7 @@ if __name__ == "__main__":
 
     # Test
     print("Creating id_to_file mapping...")
-    id_to_file = {}
     df = pd.read_csv(hparams["csv_test"])
-    for i in range(len(df)):
-        id_to_file[str(df.ID[i])] = df.wav[i].split("/")[-1]
-
+    id_to_file = {str(df.ID[i]): df.wav[i].split("/")[-1] for i in range(len(df))}
     slu_brain.hparams.wer_file = hparams["output_folder"] + "/wer_test_real.txt"
     slu_brain.evaluate(test_set, test_loader_kwargs=hparams["dataloader_opts"])

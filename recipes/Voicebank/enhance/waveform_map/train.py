@@ -27,9 +27,7 @@ class SEBrain(sb.Brain):
         batch = batch.to(self.device)
         noisy_wavs, lens = batch.noisy_sig
         noisy_wavs = torch.unsqueeze(noisy_wavs, -1)
-        predict_wavs = self.modules.model(noisy_wavs)[:, :, 0]
-
-        return predict_wavs
+        return self.modules.model(noisy_wavs)[:, :, 0]
 
     def compute_objectives(self, predict_wavs, batch, stage):
         """Computes the loss given the predicted and targeted outputs"""
@@ -149,7 +147,7 @@ def dataio_prep(hparams):
         )
 
     # Sort train dataset
-    if hparams["sorting"] == "ascending" or hparams["sorting"] == "descending":
+    if hparams["sorting"] in ["ascending", "descending"]:
         datasets["train"] = datasets["train"].filtered_sorted(
             sort_key="length", reverse=hparams["sorting"] == "descending"
         )

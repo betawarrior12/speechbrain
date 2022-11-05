@@ -24,21 +24,19 @@ class ASR(sb.core.Brain):
         tokens_bos, _ = batch.tokens_bos
 
         # Add augmentation if specified
-        if stage == sb.Stage.TRAIN:
-            if hasattr(self.modules, "env_corrupt"):
-                wavs_noise = self.modules.env_corrupt(wavs, wav_lens)
-                wavs = torch.cat([wavs, wavs_noise], dim=0)
-                wav_lens = torch.cat([wav_lens, wav_lens])
-                tokens_bos = torch.cat([tokens_bos, tokens_bos], dim=0)
+        if stage == sb.Stage.TRAIN and hasattr(self.modules, "env_corrupt"):
+            wavs_noise = self.modules.env_corrupt(wavs, wav_lens)
+            wavs = torch.cat([wavs, wavs_noise], dim=0)
+            wav_lens = torch.cat([wav_lens, wav_lens])
+            tokens_bos = torch.cat([tokens_bos, tokens_bos], dim=0)
 
         # compute features
         feats = self.hparams.compute_features(wavs)
         current_epoch = self.hparams.epoch_counter.current
         feats = self.hparams.normalize(feats, wav_lens, epoch=current_epoch)
 
-        if stage == sb.Stage.TRAIN:
-            if hasattr(self.hparams, "augmentation"):
-                feats = self.hparams.augmentation(feats)
+        if stage == sb.Stage.TRAIN and hasattr(self.hparams, "augmentation"):
+            feats = self.hparams.augmentation(feats)
 
         # forward modules
         src = self.modules.CNN(feats)
@@ -178,12 +176,10 @@ class ASR(sb.core.Brain):
             if current_epoch <= self.hparams.stage_one_epochs:
                 lr = self.hparams.noam_annealing.current_lr
                 steps = self.hparams.noam_annealing.n_steps
-                optimizer = self.optimizer.__class__.__name__
             else:
                 lr = self.hparams.lr_sgd
                 steps = -1
-                optimizer = self.optimizer.__class__.__name__
-
+            optimizer = self.optimizer.__class__.__name__
             epoch_stats = {
                 "epoch": epoch,
                 "lr": lr,
@@ -243,8 +239,8 @@ class ASR(sb.core.Brain):
 
         # if the model is resumed from stage two, reinitialize the optimizer
         current_epoch = self.hparams.epoch_counter.current
-        current_optimizer = self.optimizer
         if current_epoch > self.hparams.stage_one_epochs:
+            current_optimizer = self.optimizer
             del self.optimizer
             self.optimizer = self.hparams.SGD(self.modules.parameters())
 

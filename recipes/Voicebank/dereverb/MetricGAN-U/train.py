@@ -9,6 +9,7 @@ Authors
  * Szu-Wei Fu 2021/09
 """
 
+
 import os
 import sys
 import shutil
@@ -37,19 +38,19 @@ from speechbrain.dataio.sampler import ReproducibleWeightedRandomSampler
 SCORING_URI = "https://dnsmos-4.azurewebsites.net/score"
 # If the service is authenticated, set the key or token
 AUTH_KEY = ""
-if AUTH_KEY == "":
+if not AUTH_KEY:
     print(
         "To access DNSMOS, you have to ask the key from the DNS organizer: dns_challenge@microsoft.com"
     )
 # Set the content type
-headers = {"Content-Type": "application/json"}
-# If authentication is enabled, set the authorization header
-headers["Authorization"] = f"Basic {AUTH_KEY }"
+headers = {
+    "Content-Type": "application/json",
+    "Authorization": f"Basic {AUTH_KEY}",
+}
 
 
 def sigmoid(x):
-    s = 1 / (1 + np.exp(-x))
-    return s
+    return 1 / (1 + np.exp(-x))
 
 
 def pesq_eval(predict, target):
@@ -113,10 +114,11 @@ def dnsmos_eval(predict, target):
         try:
             u = urlparse(SCORING_URI)
             resp = requests.post(
-                urljoin("https://" + u.netloc, "score"),
+                urljoin(f"https://{u.netloc}", "score"),
                 data=input_data,
                 headers=headers,
             )
+
             score_dict = resp.json()
             score = float(
                 sigmoid(score_dict["mos"])
@@ -142,10 +144,11 @@ def dnsmos_eval_valid(predict, target):
         try:
             u = urlparse(SCORING_URI)
             resp = requests.post(
-                urljoin("https://" + u.netloc, "score"),
+                urljoin(f"https://{u.netloc}", "score"),
                 data=input_data,
                 headers=headers,
             )
+
             score_dict = resp.json()
             score = float(score_dict["mos"])
             break
@@ -172,8 +175,7 @@ class MetricGanBrain(sb.Brain):
     def compute_feats(self, wavs):
         """Feature computation pipeline"""
         feats = self.hparams.compute_STFT(wavs)
-        spec = spectral_magnitude(feats, power=0.5)
-        return spec
+        return spectral_magnitude(feats, power=0.5)
 
     def compute_forward(self, batch, stage):
         "Given an input batch computes the enhanced signal"
@@ -323,9 +325,7 @@ class MetricGanBrain(sb.Brain):
             if d not in self.historical_set and d not in self.noisy_scores
         ]
 
-        if len(new_ids) == 0:
-            pass
-        elif self.hparams.target_metric == "srmr" or "dnsmos":
+        if new_ids:
             self.target_metric.append(
                 ids=[batch_id[i] for i in new_ids],
                 predict=deg_wav[new_ids].detach(),
@@ -337,9 +337,6 @@ class MetricGanBrain(sb.Brain):
             score = torch.tensor(
                 [[s] for s in self.target_metric.scores], device=self.device,
             )
-        else:
-            raise ValueError("Expected 'srmr' or 'dnsmos' for target_metric")
-
         # Clear metric scores to prepare for next batch
         self.target_metric.clear()
 
@@ -390,7 +387,7 @@ class MetricGanBrain(sb.Brain):
         lens = lens * wavs.shape[1]
         record = {}
         for i, (name, pred_wav, length) in enumerate(zip(batch_id, wavs, lens)):
-            path = os.path.join(self.hparams.MetricGAN_folder, name + ".wav")
+            path = os.path.join(self.hparams.MetricGAN_folder, f"{name}.wav")
             data = torch.unsqueeze(pred_wav[: int(length)].cpu(), 0)
             torchaudio.save(path, data, self.hparams.Sample_rate)
 
@@ -540,22 +537,21 @@ class MetricGanBrain(sb.Brain):
             d_loss = torch.tensor(self.metrics["D"])  # batch_size
             print("Avg G loss: %.3f" % torch.mean(g_loss))
             print("Avg D loss: %.3f" % torch.mean(d_loss))
+        elif self.hparams.calculate_dnsmos_on_validation_set:
+            stats = {
+                "SI-SNR": -stage_loss,
+                "pesq": 5 * self.pesq_metric.summarize("average") - 0.5,
+                "stoi": -self.stoi_metric.summarize("average"),
+                "srmr": self.srmr_metric.summarize("average"),
+                "dnsmos": self.dnsmos_metric.summarize("average"),
+            }
         else:
-            if self.hparams.calculate_dnsmos_on_validation_set:
-                stats = {
-                    "SI-SNR": -stage_loss,
-                    "pesq": 5 * self.pesq_metric.summarize("average") - 0.5,
-                    "stoi": -self.stoi_metric.summarize("average"),
-                    "srmr": self.srmr_metric.summarize("average"),
-                    "dnsmos": self.dnsmos_metric.summarize("average"),
-                }
-            else:
-                stats = {
-                    "SI-SNR": -stage_loss,
-                    "pesq": 5 * self.pesq_metric.summarize("average") - 0.5,
-                    "stoi": -self.stoi_metric.summarize("average"),
-                    "srmr": self.srmr_metric.summarize("average"),
-                }
+            stats = {
+                "SI-SNR": -stage_loss,
+                "pesq": 5 * self.pesq_metric.summarize("average") - 0.5,
+                "stoi": -self.stoi_metric.summarize("average"),
+                "srmr": self.srmr_metric.summarize("average"),
+            }
 
         if stage == sb.Stage.VALID:
             old_lr, new_lr = self.hparams.lr_annealing(5.0 - stats["pesq"])
@@ -676,16 +672,16 @@ def enh_pipeline(enh_wav):
 def dataio_prep(hparams):
     """This function prepares the datasets to be used in the brain class."""
 
-    # Define datasets
-    datasets = {}
-
     dataset = "train"
-    datasets[dataset] = sb.dataio.dataset.DynamicItemDataset.from_json(
-        json_path=hparams[f"{dataset}_annotation"],
-        replacements={"data_root": hparams["data_folder"]},
-        dynamic_items=[audio_pipeline_train],
-        output_keys=["id", "noisy_sig"],
-    )
+    datasets = {
+        dataset: sb.dataio.dataset.DynamicItemDataset.from_json(
+            json_path=hparams[f"{dataset}_annotation"],
+            replacements={"data_root": hparams["data_folder"]},
+            dynamic_items=[audio_pipeline_train],
+            output_keys=["id", "noisy_sig"],
+        )
+    }
+
     for dataset in ["valid", "test"]:
         datasets[dataset] = sb.dataio.dataset.DynamicItemDataset.from_json(
             json_path=hparams[f"{dataset}_annotation"],

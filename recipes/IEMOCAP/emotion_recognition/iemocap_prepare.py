@@ -95,27 +95,37 @@ def prepare_data(
         logger.info("Data Transformation completed in previous run, skipping.")
 
     if (
-        not len(list(glob.iglob(data_transformed + "/*/*/*", recursive=True)))
-        == NUMBER_UTT
+        len(list(glob.iglob(f"{data_transformed}/*/*/*", recursive=True)))
+        != NUMBER_UTT
     ):
         logger.error(
             "Error: The data folder is not in the expected format. Expected <session_id>/<emo_id>/<file_name>.wav (e.g., session1/ang/psno1_ang_s084_orgn.wav)"
         )
         sys.exit(
-            "Data transformed dirctory "
-            + data_transformed
-            + "contains: "
-            + str(
-                len(
-                    list(
-                        glob.iglob(data_transformed + "/*/*/*", recursive=True)
+            (
+                (
+                    (
+                        "Data transformed dirctory "
+                        + data_transformed
+                        + "contains: "
+                        + str(
+                            len(
+                                list(
+                                    glob.iglob(
+                                        f"{data_transformed}/*/*/*",
+                                        recursive=True,
+                                    )
+                                )
+                            )
+                        )
                     )
+                    + " file. Expected "
                 )
+                + str(NUMBER_UTT)
+                + "."
             )
-            + " file. Expected "
-            + str(NUMBER_UTT)
-            + "."
         )
+
 
     # List files and create manifest from list
     logger.info(
@@ -189,18 +199,12 @@ def skip(*filenames):
         if True, the preparation phase can be skipped.
         if False, it must be done.
     """
-    for filename in filenames:
-        if not os.path.isfile(filename):
-            return False
-    return True
+    return all(os.path.isfile(filename) for filename in filenames)
 
 
 def check_folders(*folders):
     """Returns False if any passed folder does not exist."""
-    for folder in folders:
-        if not os.path.exists(folder):
-            return False
-    return True
+    return all(os.path.exists(folder) for folder in folders)
 
 
 def split_different_speakers(wav_list):
@@ -266,8 +270,8 @@ def split_sets(wav_list, split_ratio):
 
     for i, split in enumerate(splits):
         n_snts = int(tot_snts * split_ratio[i] / tot_split)
-        data_split[split] = wav_list[0:n_snts]
-        del wav_list[0:n_snts]
+        data_split[split] = wav_list[:n_snts]
+        del wav_list[:n_snts]
     data_split["test"] = wav_list
 
     return data_split
@@ -304,11 +308,8 @@ def transform_data(path_loadSession, path_structured_data):
     """
 
     for k in range(5):
-        session_ = []
-        session = load_session("%s%s" % (path_loadSession, k + 1))
-        for idx in range(len(session)):
-            session_.append(session[idx])
-
+        session = load_session(f"{path_loadSession}{k + 1}")
+        session_ = [session[idx] for idx in range(len(session))]
         dic_ = count_emotion(session_)
         logger.info("=" * 50)
         logger.info("Total Session_%d :" % (k + 1) + " %d" % sum(dic_.values()))
@@ -363,8 +364,8 @@ def load_session(pathSession):
         improvisedUtteranceList: list
             List of improvised utterancefor IEMOCAP session.
     """
-    pathEmo = pathSession + "/dialog/EmoEvaluation/"
-    pathWavFolder = pathSession + "/sentences/wav/"
+    pathEmo = f"{pathSession}/dialog/EmoEvaluation/"
+    pathWavFolder = f"{pathSession}/sentences/wav/"
 
     improvisedUtteranceList = []
     for emoFile in [
@@ -373,13 +374,7 @@ def load_session(pathSession):
         if os.path.isfile(os.path.join(pathEmo, f))
     ]:
         for utterance in load_utterInfo(pathEmo + emoFile):
-            if (
-                (utterance[3] == "neu")
-                or (utterance[3] == "hap")
-                or (utterance[3] == "sad")
-                or (utterance[3] == "ang")
-                or (utterance[3] == "exc")
-            ):
+            if utterance[3] in ["neu", "hap", "sad", "ang", "exc"]:
                 path = (
                     pathWavFolder
                     + utterance[2][:-5]
@@ -465,7 +460,7 @@ def save_wavFile(session, pathName):
         label = utterance[1]
         if label == "exc":
             label = "hap"
-        directory = "%s/%s" % (pathName, label)
+        directory = f"{pathName}/{label}"
         makedirs(directory)
         filename = "%s/psn%s%s_%s_s%03d_orgn.wav" % (
             directory,
@@ -489,5 +484,5 @@ def makedirs(path):
             Path folder.
     """
     if not os.path.exists(path):
-        print(" [*] Make directories : {}".format(path))
+        print(f" [*] Make directories : {path}")
         os.makedirs(path)

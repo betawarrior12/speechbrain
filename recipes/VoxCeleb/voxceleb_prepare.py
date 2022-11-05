@@ -187,10 +187,7 @@ def skip(splits, save_folder, conf):
     if skip is True:
         if os.path.isfile(save_opt):
             opts_old = load_pkl(save_opt)
-            if opts_old == conf:
-                skip = True
-            else:
-                skip = False
+            skip = opts_old == conf
         else:
             skip = False
 
@@ -311,12 +308,10 @@ def _get_chunks(seg_dur, audio_id, audio_duration):
     """
     num_chunks = int(audio_duration / seg_dur)  # all in milliseconds
 
-    chunk_lst = [
-        audio_id + "_" + str(i * seg_dur) + "_" + str(i * seg_dur + seg_dur)
+    return [
+        f"{audio_id}_{str(i * seg_dur)}_{str(i * seg_dur + seg_dur)}"
         for i in range(num_chunks)
     ]
-
-    return chunk_lst
 
 
 def prepare_csv(seg_dur, wav_lst, csv_file, random_segment=False, amp_th=0):
@@ -362,8 +357,8 @@ def prepare_csv(seg_dur, wav_lst, csv_file, random_segment=False, amp_th=0):
         signal, fs = torchaudio.load(wav_file)
         signal = signal.squeeze(0)
 
+        audio_duration = signal.shape[0] / SAMPLERATE
         if random_segment:
-            audio_duration = signal.shape[0] / SAMPLERATE
             start_sample = 0
             stop_sample = signal.shape[0]
 
@@ -378,8 +373,6 @@ def prepare_csv(seg_dur, wav_lst, csv_file, random_segment=False, amp_th=0):
             ]
             entry.append(csv_line)
         else:
-            audio_duration = signal.shape[0] / SAMPLERATE
-
             uniq_chunks_list = _get_chunks(seg_dur, audio_id, audio_duration)
             for chunk in uniq_chunks_list:
                 s, e = chunk.split("_")[-2:]
@@ -402,7 +395,7 @@ def prepare_csv(seg_dur, wav_lst, csv_file, random_segment=False, amp_th=0):
                 ]
                 entry.append(csv_line)
 
-    csv_output = csv_output + entry
+    csv_output += entry
 
     # Writing the csv lines
     with open(csv_file, mode="w") as csv_f:
@@ -460,7 +453,7 @@ def prepare_csv_enrol_test(data_folders, save_folder, verification_pairs_file):
         logger.info("preparing enrol csv")
         enrol_csv = []
         for id in enrol_ids:
-            wav = data_folder + "/wav/" + id + ".wav"
+            wav = f"{data_folder}/wav/{id}.wav"
 
             # Reading the signal (to retrieve duration in seconds)
             signal, fs = torchaudio.load(wav)
@@ -495,14 +488,14 @@ def prepare_csv_enrol_test(data_folders, save_folder, verification_pairs_file):
         # Prepare test csv
         logger.info("preparing test csv")
         test_csv = []
+        start_sample = 0
         for id in test_ids:
-            wav = data_folder + "/wav/" + id + ".wav"
+            wav = f"{data_folder}/wav/{id}.wav"
 
             # Reading the signal (to retrieve duration in seconds)
             signal, fs = torchaudio.load(wav)
             signal = signal.squeeze(0)
             audio_duration = signal.shape[0] / SAMPLERATE
-            start_sample = 0
             stop_sample = signal.shape[0]
             [spk_id, sess_id, utt_id] = wav.split("/")[-3:]
 

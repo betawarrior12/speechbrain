@@ -28,8 +28,7 @@ class SEBrain(sb.Brain):
         """Forward computations of the generator. Input noisy signal,
         output clean signal"""
         noisy_wavs = noisy_wavs.to(self.device)
-        predict_wavs = self.modules["model_g"](noisy_wavs)
-        return predict_wavs
+        return self.modules["model_g"](noisy_wavs)
 
     def compute_forward_d(self, noisy_wavs, clean_wavs):
         """Forward computations from discriminator. Input denoised-noisy pair,
@@ -38,8 +37,7 @@ class SEBrain(sb.Brain):
         clean_wavs = clean_wavs.to(self.device)
 
         inpt = torch.cat((noisy_wavs, clean_wavs), -1)
-        out = self.modules["model_d"](inpt)
-        return out
+        return self.modules["model_d"](inpt)
 
     def compute_objectives_d1(self, d_outs, batch):
         """Computes the loss of a discriminator given predicted and
@@ -418,7 +416,7 @@ def dataio_prep(hparams):
         )
 
     # Sort train dataset
-    if hparams["sorting"] == "ascending" or hparams["sorting"] == "descending":
+    if hparams["sorting"] in ["ascending", "descending"]:
         datasets["train"] = datasets["train"].filtered_sorted(
             sort_key="length", reverse=hparams["sorting"] == "descending"
         )

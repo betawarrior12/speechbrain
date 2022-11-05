@@ -253,10 +253,7 @@ def skip(*filenames):
         if True, the preparation phase can be skipped.
         if False, it must be done.
     """
-    for filename in filenames:
-        if not os.path.isfile(filename):
-            return False
-    return True
+    return all(os.path.isfile(filename) for filename in filenames)
 
 
 def remove_punctuation(a_string):
@@ -334,7 +331,7 @@ def create_json(wav_lst, json_file, clean_folder, txt_folder, lexicon):
 
         # Read text
         snt_id = filename.replace(".wav", "")
-        with open(os.path.join(txt_folder, snt_id + ".txt")) as f:
+        with open(os.path.join(txt_folder, f"{snt_id}.txt")) as f:
             word_string = f.read()
         word_string = remove_punctuation(word_string).strip().upper()
         phones = [
@@ -395,28 +392,29 @@ def download_vctk(destination, tmp_dir=None, device="cpu"):
 
     prefix = "https://datashare.is.ed.ac.uk/bitstream/handle/10283/2791/"
     noisy_vctk_urls = [
-        prefix + "clean_testset_wav.zip",
-        prefix + "noisy_testset_wav.zip",
-        prefix + "testset_txt.zip",
-        prefix + "clean_trainset_28spk_wav.zip",
-        prefix + "noisy_trainset_28spk_wav.zip",
-        prefix + "trainset_28spk_txt.zip",
+        f"{prefix}clean_testset_wav.zip",
+        f"{prefix}noisy_testset_wav.zip",
+        f"{prefix}testset_txt.zip",
+        f"{prefix}clean_trainset_28spk_wav.zip",
+        f"{prefix}noisy_trainset_28spk_wav.zip",
+        f"{prefix}trainset_28spk_txt.zip",
     ]
+
 
     zip_files = []
     for url in noisy_vctk_urls:
         filename = os.path.join(tmp_dir, url.split("/")[-1])
         zip_files.append(filename)
         if not os.path.isfile(filename):
-            print("Downloading " + url)
+            print(f"Downloading {url}")
             with urllib.request.urlopen(url) as response:
                 with open(filename, "wb") as tmp_file:
-                    logger.info("... to " + tmp_file.name)
+                    logger.info(f"... to {tmp_file.name}")
                     shutil.copyfileobj(response, tmp_file)
 
     # Unzip
     for zip_file in zip_files:
-        logger.info("Unzipping " + zip_file)
+        logger.info(f"Unzipping {zip_file}")
         shutil.unpack_archive(zip_file, tmp_dir, "zip")
         os.remove(zip_file)
 
@@ -435,11 +433,11 @@ def download_vctk(destination, tmp_dir=None, device="cpu"):
     downsampler = Resample(orig_freq=48000, new_freq=16000)
 
     for directory in dirs:
-        logger.info("Resampling " + directory)
+        logger.info(f"Resampling {directory}")
         dirname = os.path.join(tmp_dir, directory)
 
         # Make directory to store downsampled files
-        dirname_16k = os.path.join(final_dir, directory + "_16k")
+        dirname_16k = os.path.join(final_dir, f"{directory}_16k")
         if not os.path.isdir(dirname_16k):
             os.mkdir(dirname_16k)
 
@@ -461,7 +459,7 @@ def download_vctk(destination, tmp_dir=None, device="cpu"):
         # Remove old directory
         os.rmdir(dirname)
 
-    logger.info("Zipping " + final_dir)
+    logger.info(f"Zipping {final_dir}")
     final_zip = shutil.make_archive(
         base_name=final_dir,
         format="zip",
@@ -470,4 +468,4 @@ def download_vctk(destination, tmp_dir=None, device="cpu"):
     )
 
     logger.info(f"Moving {final_zip} to {destination}")
-    shutil.move(final_zip, os.path.join(destination, dataset_name + ".zip"))
+    shutil.move(final_zip, os.path.join(destination, f"{dataset_name}.zip"))

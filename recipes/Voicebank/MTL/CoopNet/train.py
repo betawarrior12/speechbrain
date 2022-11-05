@@ -54,15 +54,12 @@ def estoi_eval(pred_wav, target_wav):
 
 def get_attr(hparams, key):
     """Get an attribute if it exists"""
-    if hasattr(hparams, key):
-        return hparams.__getattribute__(key)
-    return False
+    return hparams.__getattribute__(key) if hasattr(hparams, key) else False
 
 
 def create_folder(folder):
-    if folder is not None:
-        if not os.path.isdir(folder):
-            os.makedirs(folder)
+    if folder is not None and not os.path.isdir(folder):
+        os.makedirs(folder)
 
 
 # Define training procedure
@@ -74,12 +71,9 @@ class CoopNetBrain(sb.Brain):
         out_weights = self.hparams.model[f"fuse_{layer}"](
             predictions[f"asr_out_{layer}"]
         )
-        # Create attention mask
-        att_mask = torch.matmul(
-            out_weights, noisy_feats.permute(0, 2, 1)
-        ).repeat(self.hparams.n_heads, 1, 1)
-
-        return att_mask
+        return torch.matmul(out_weights, noisy_feats.permute(0, 2, 1)).repeat(
+            self.hparams.n_heads, 1, 1
+        )
 
     def enhance_speech(self, batch, layer, predictions):
         """Enhancement module for a given layer"""
@@ -186,9 +180,8 @@ class CoopNetBrain(sb.Brain):
                 wavs = wavs_noise
                 if concat:
                     torch.cat([wavs, wavs_noise], dim=0)
-            else:
-                if concat:
-                    wavs = torch.cat([wavs, wavs], dim=0)
+            elif concat:
+                wavs = torch.cat([wavs, wavs], dim=0)
 
             if concat:
                 wav_lens = torch.cat([wav_lens, wav_lens])
@@ -252,7 +245,7 @@ class CoopNetBrain(sb.Brain):
                         wav = predictions[f"wavs_{layer}"][
                             i, :length
                         ].unsqueeze(0)
-                        path = os.path.join(self.hparams.enh_dir, uid + ".wav")
+                        path = os.path.join(self.hparams.enh_dir, f"{uid}.wav")
                         torchaudio.save(path, wav.cpu(), sample_rate=16000)
 
         # Compute hard ASR loss
@@ -313,38 +306,39 @@ class CoopNetBrain(sb.Brain):
         See CoopNet.py for the MultipleOptimizer class.
         """
 
-        if self.opt_class is not None:
-            if get_attr(self.hparams, "multi_optim"):
-                model = self.modules.model
-                # Retrieve proper parameters for each optimizer
-                se_parameters = chain.from_iterable(
-                    [model[k].parameters() for k in model.keys() if "se" in k]
+        if self.opt_class is None:
+            return
+        if get_attr(self.hparams, "multi_optim"):
+            model = self.modules.model
+            # Retrieve proper parameters for each optimizer
+            se_parameters = chain.from_iterable(
+                [model[k].parameters() for k in model.keys() if "se" in k]
+            )
+            asr_parameters = chain.from_iterable(
+                [model[k].parameters() for k in model.keys() if "asr" in k]
+                + [  # Add fuse layers to ASR optimizer
+                    model[k].parameters()
+                    for k in model.keys()
+                    if "attention" in k
+                ]
+            )
+            params = {
+                "se_opt": se_parameters,
+                "asr_opt": asr_parameters,
+            }
+
+            self.optimizer = self.opt_class(params=params)
+            if self.checkpointer is not None:
+                for k, opt in self.optimizer.optimizers.items():
+                    self.checkpointer.add_recoverable(f"optimizer_{k}", opt)
+
+        else:
+            self.optimizer = self.opt_class(self.modules.parameters())
+
+            if self.checkpointer is not None:
+                self.checkpointer.add_recoverable(
+                    "optimizer", self.optimizer
                 )
-                asr_parameters = chain.from_iterable(
-                    [model[k].parameters() for k in model.keys() if "asr" in k]
-                    + [  # Add fuse layers to ASR optimizer
-                        model[k].parameters()
-                        for k in model.keys()
-                        if "attention" in k
-                    ]
-                )
-                params = {
-                    "se_opt": se_parameters,
-                    "asr_opt": asr_parameters,
-                }
-
-                self.optimizer = self.opt_class(params=params)
-                if self.checkpointer is not None:
-                    for k, opt in self.optimizer.optimizers.items():
-                        self.checkpointer.add_recoverable(f"optimizer_{k}", opt)
-
-            else:
-                self.optimizer = self.opt_class(self.modules.parameters())
-
-                if self.checkpointer is not None:
-                    self.checkpointer.add_recoverable(
-                        "optimizer", self.optimizer
-                    )
 
     def on_stage_start(self, stage, epoch):
         if stage != sb.Stage.TRAIN:
@@ -364,21 +358,19 @@ class CoopNetBrain(sb.Brain):
                     f"err_rate_metrics_{layer}"
                 ] = self.hparams.err_rate_stats()
 
-        # Freeze models before training
         else:
             for model in self.hparams.frozen_models:
                 for p in self.modules[model].parameters():
-                    if (
-                        hasattr(self.hparams, "unfreeze_epoch")
-                        and epoch >= self.hparams.unfreeze_epoch
-                        and (
-                            not hasattr(self.hparams, "unfrozen_models")
-                            or model in self.hparams.unfrozen_models
+                    p.requires_grad = bool(
+                        (
+                            hasattr(self.hparams, "unfreeze_epoch")
+                            and epoch >= self.hparams.unfreeze_epoch
+                            and (
+                                not hasattr(self.hparams, "unfrozen_models")
+                                or model in self.hparams.unfrozen_models
+                            )
                         )
-                    ):
-                        p.requires_grad = True
-                    else:
-                        p.requires_grad = False
+                    )
 
     def on_stage_end(self, stage, stage_loss, epoch):
         if stage == sb.Stage.TRAIN:
@@ -405,8 +397,8 @@ class CoopNetBrain(sb.Brain):
                     err_rate = self.metrics[
                         f"err_rate_metrics_{layer}"
                     ].summarize("error_rate")
-                    err_rate_type = self.hparams.target_type + "ER"
-                    stage_stats[err_rate_type + f"_{layer}"] = err_rate
+                    err_rate_type = f"{self.hparams.target_type}ER"
+                    stage_stats[f"{err_rate_type}_{layer}"] = err_rate
                     min_keys.append(err_rate_type)
 
         if stage == sb.Stage.VALID:
@@ -483,11 +475,10 @@ class CoopNetBrain(sb.Brain):
 
             # Try parsing model_path as a url first.
             try:
-                print("trying to download " + model_path)
+                print(f"trying to download {model_path}")
                 save_dir = os.path.join(self.hparams.output_folder, "save")
                 model_path = download_to_dir(model_path, save_dir)
 
-            # If it fails, assume its a valid filepath already
             except ValueError:
                 pass
 
@@ -541,7 +532,7 @@ def dataio_prep(hparams):
             data[dataset] = data[dataset].filtered_sorted(sort_key="length")
 
     # Sort train dataset and ensure it doesn't get un-sorted
-    if hparams["sorting"] == "ascending" or hparams["sorting"] == "descending":
+    if hparams["sorting"] in ["ascending", "descending"]:
         data["train"] = data["train"].filtered_sorted(
             sort_key="length", reverse=hparams["sorting"] == "descending",
         )

@@ -41,13 +41,13 @@ def build_spk_hashtable(base_folder_dm, sample_rate):
         # id of speaker 1 is 019 utterance id is o031a
         # id of speaker 2 is 01v utterance id is 01vo030q
 
-        if spk_id not in spk_hashtable.keys():
-            spk_hashtable[spk_id] = [utt]
-        else:
+        if spk_id in spk_hashtable:
             spk_hashtable[spk_id].append(utt)
 
+        else:
+            spk_hashtable[spk_id] = [utt]
     # calculate weights for each speaker ( len of list of utterances)
-    spk_weights = [len(spk_hashtable[x]) for x in spk_hashtable.keys()]
+    spk_weights = [len(spk_hashtable[x]) for x in spk_hashtable]
 
     return spk_hashtable, spk_weights
 
@@ -68,8 +68,7 @@ def get_wham_noise_filenames(data_root_folder, sample_rate):
     else:
         raise ValueError("Unsupported Sampling Rate")
 
-    noise_files = glob.glob(os.path.join(data_root_folder, noise_path, "*.wav"))
-    return noise_files
+    return glob.glob(os.path.join(data_root_folder, noise_path, "*.wav"))
 
 
 def dynamic_mix_data_prep(
@@ -106,7 +105,7 @@ def dynamic_mix_data_prep(
         base_folder_dm=base_folder_dm, sample_rate=sample_rate
     )
 
-    spk_list = [x for x in spk_hashtable.keys()]
+    spk_list = list(spk_hashtable.keys())
     spk_weights = [x / sum(spk_weights) for x in spk_weights]
 
     if "wham" in Path(data_root_folder).stem:

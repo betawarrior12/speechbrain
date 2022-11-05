@@ -51,7 +51,7 @@ def write_shards(
     shards_path.mkdir(parents=True, exist_ok=True)
 
     # find all audio files
-    audio_files = sorted([f for f in voxlingua_folder_path.rglob("*.wav")])
+    audio_files = sorted(list(voxlingua_folder_path.rglob("*.wav")))
 
     # create tuples (unique_sample_id, language_id, path_to_audio_file, duration)
     data_tuples = []
@@ -61,30 +61,28 @@ def write_shards(
     sample_keys_per_language = defaultdict(list)
 
     for f in audio_files:
-        # path should be
-        # voxlingua107_folder_path/<LANG_ID>/<VIDEO---0000.000-0000.000.wav>
-        m = re.match(
-            r"(.*/((.+)/.+---(\d\d\d\d\.\d\d\d)-(\d\d\d\d\.\d\d\d))\.wav)",
-            f.as_posix(),
-        )
-        if m:
-            loc = m.group(1)
-            key = m.group(2)
-            lang = m.group(3)
-            start = float(m.group(4))
-            end = float(m.group(5))
-            dur = end - start
-            # Period is not allowed in a WebDataset key name
-            key = key.replace(".", "_")
-            if dur > min_dur:
-                # store statistics
-                all_language_ids.add(lang)
-                sample_keys_per_language[lang].append(key)
-                t = (key, lang, loc, dur)
-                data_tuples.append(t)
-        else:
-            raise Exception("Unexpected wav name: " + f)
+        if not (
+            m := re.match(
+                r"(.*/((.+)/.+---(\d\d\d\d\.\d\d\d)-(\d\d\d\d\.\d\d\d))\.wav)",
+                f.as_posix(),
+            )
+        ):
+            raise Exception(f"Unexpected wav name: {f}")
 
+        loc = m[1]
+        key = m[2]
+        lang = m[3]
+        start = float(m[4])
+        end = float(m[5])
+        dur = end - start
+        # Period is not allowed in a WebDataset key name
+        key = key.replace(".", "_")
+        if dur > min_dur:
+            # store statistics
+            all_language_ids.add(lang)
+            sample_keys_per_language[lang].append(key)
+            t = (key, lang, loc, dur)
+            data_tuples.append(t)
     all_language_ids = sorted(all_language_ids)
 
     # write a meta.json file which contains statistics on the data

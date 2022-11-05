@@ -58,10 +58,7 @@ class P3Brain(sb.Brain):
         """Gets called at the beginning of ``fit()``"""
         initialize_module(self.hparams.model)
         self.init_optimizers()
-        self.metrics = {}
-        self.metrics["loss"] = []
-        self.metrics["f1"] = []
-        self.metrics["auc"] = []
+        self.metrics = {"loss": [], "f1": [], "auc": []}
 
     def on_stage_start(self, stage, epoch=None):
         "Gets called when a stage (either training, validation, test) starts."
@@ -195,8 +192,7 @@ def standardize(x, m, s):
     """This function standardizes input EEG signals (x) using mean value (m)
     and standard deviation (s)."""
     demeaned = x - m.reshape((1, m.shape[0], 1))
-    standardized = demeaned / (1e-14 + s.reshape((1, s.shape[0], 1)))
-    return standardized
+    return demeaned / (1e-14 + s.reshape((1, s.shape[0], 1)))
 
 
 def dataio_prepare(hparams):
@@ -280,24 +276,19 @@ def dataio_prepare(hparams):
     test_loader = DataLoader(
         dataset, batch_size=hparams["batch_size"], pin_memory=True
     )
-    datasets = {}
-    datasets["train"] = train_loader
-    datasets["valid"] = valid_loader
-    datasets["test"] = test_loader
-    return datasets
+    return {"train": train_loader, "valid": valid_loader, "test": test_loader}
 
 
 def initialize_module(module):
     """Function to initialize neural network modules"""
     for mod in module.modules():
         if hasattr(mod, "weight"):
-            if not ("BatchNorm" in mod.__class__.__name__):
+            if "BatchNorm" not in mod.__class__.__name__:
                 init.xavier_uniform_(mod.weight, gain=1)
             else:
                 init.constant_(mod.weight, 1)
-        if hasattr(mod, "bias"):
-            if mod.bias is not None:
-                init.constant_(mod.bias, 0)
+        if hasattr(mod, "bias") and mod.bias is not None:
+            init.constant_(mod.bias, 0)
 
 
 if __name__ == "__main__":

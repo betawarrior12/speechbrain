@@ -229,11 +229,12 @@ def dataio_prep(hparams):
     datasets = {}
     for dataset in ["train", "dev", "test"]:
         datasets[dataset] = sb.dataio.dataset.DynamicItemDataset.from_csv(
-            csv_path=os.path.join(hparams["save_folder"], dataset + ".csv"),
+            csv_path=os.path.join(hparams["save_folder"], f"{dataset}.csv"),
             replacements={"data_root": hparams["data_folder"]},
             dynamic_items=[audio_pipeline, label_pipeline],
             output_keys=["id", "sig", "language_encoded"],
         )
+
 
     # Load or compute the label encoder (with multi-GPU DDP support)
     # Please, take a look into the lab_enc_file to see the label to index

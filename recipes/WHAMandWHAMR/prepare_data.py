@@ -92,17 +92,15 @@ def create_wham_whamr_csv(
             s2 = "s2/"
 
         mix_path = os.path.join(
-            datapath, "wav{}".format(sample_rate), version, set_type, mix_both,
+            datapath, f"wav{sample_rate}", version, set_type, mix_both
         )
-        s1_path = os.path.join(
-            datapath, "wav{}".format(sample_rate), version, set_type, s1,
-        )
-        s2_path = os.path.join(
-            datapath, "wav{}".format(sample_rate), version, set_type, s2,
-        )
+
+        s1_path = os.path.join(datapath, f"wav{sample_rate}", version, set_type, s1)
+        s2_path = os.path.join(datapath, f"wav{sample_rate}", version, set_type, s2)
         noise_path = os.path.join(
-            datapath, "wav{}".format(sample_rate), version, set_type, "noise/"
+            datapath, f"wav{sample_rate}", version, set_type, "noise/"
         )
+
         # rir_path = os.path.join(
         #     datapath, "wav{}".format(sample_rate), version, set_type, "rirs/"
         # )
@@ -186,7 +184,7 @@ def create_whamr_rir_csv(datapath, savepath):
     files = os.listdir(datapath)
     all_paths = [os.path.join(datapath, fl) for fl in files]
 
-    with open(savepath + "/whamr_rirs.csv", "w") as csvfile:
+    with open(f"{savepath}/whamr_rirs.csv", "w") as csvfile:
         writer = csv.DictWriter(csvfile, fieldnames=csv_columns)
         writer.writeheader()
         for i, wav_path in enumerate(all_paths):
